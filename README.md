@@ -42,4 +42,4 @@ Downloader installs only the MiSTer files it needs. Main updates independently o
 
 The database rebuilds on pushes to `main`, on a schedule, and when run manually from GitHub Actions.
 
-Manual runs can target specific `zaparoo-core`, `zaparoo-frontend`, or stable `Main_MiSTer` release tags. Otherwise the workflow uses the latest release from each repo.
+Manual runs can target specific `zaparoo-core`, `zaparoo-frontend`, or stable `Main_MiSTer` release tags. Defaults use latest Core and Frontend releases plus stable Main.

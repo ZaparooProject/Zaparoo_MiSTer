@@ -7,6 +7,7 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest import mock
 
 
 MODULE_PATH = Path(__file__).parents[1] / ".github" / "build_zaparoo_db.py"
@@ -73,6 +74,26 @@ class BuildDatabaseTests(unittest.TestCase):
             {"zaparoo/frontend", "zaparoo/menu_zaparoo.rbf"},
         )
         self.assertNotIn(build_zaparoo_db.MAIN_INSTALL_PATH, frontend_files)
+
+    def test_stable_main_selector_uses_latest_stable_release(self) -> None:
+        expected = build_zaparoo_db.ReleaseAsset(
+            "MiSTer_Zaparoo_20260707",
+            "MiSTer_Zaparoo",
+            "https://example/MiSTer_Zaparoo",
+        )
+        with mock.patch.object(
+            build_zaparoo_db,
+            "find_release_asset",
+            return_value=expected,
+        ) as find_release_asset:
+            actual = build_zaparoo_db.find_main_release_asset("stable")
+
+        self.assertEqual(actual, expected)
+        find_release_asset.assert_called_once_with(
+            build_zaparoo_db.MAIN_REPO,
+            "latest",
+            build_zaparoo_db.MAIN_ASSET_RE,
+        )
 
     def test_main_asset_pattern_excludes_debug_binary(self) -> None:
         self.assertIsNotNone(build_zaparoo_db.MAIN_ASSET_RE.fullmatch("MiSTer_Zaparoo"))

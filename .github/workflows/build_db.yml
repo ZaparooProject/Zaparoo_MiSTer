@@ -17,9 +17,9 @@ on:
         required: false
         default: "latest"
       main_tag:
-        description: "Main_MiSTer stable release tag, or latest"
+        description: "Main_MiSTer stable release tag, or stable"
         required: false
-        default: "latest"
+        default: "stable"
 
 permissions:
   contents: write
@@ -38,4 +38,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CORE_TAG: ${{ github.event.inputs.core_tag || 'latest' }}
           FRONTEND_TAG: ${{ github.event.inputs.frontend_tag || 'latest' }}
-          MAIN_TAG: ${{ github.event.inputs.main_tag || 'latest' }}
+          MAIN_TAG: ${{ github.event.inputs.main_tag || 'stable' }}

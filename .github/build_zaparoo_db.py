@@ -67,14 +67,14 @@ def main() -> int:
     parser.add_argument("--skip-test", action="store_true", help="skip downloader_test.py validation")
     parser.add_argument("--core-tag", default=os.getenv("ZAPAROO_CORE_TAG", "latest"))
     parser.add_argument("--frontend-tag", default=os.getenv("ZAPAROO_FRONTEND_TAG", "latest"))
-    parser.add_argument("--main-tag", default=os.getenv("ZAPAROO_MAIN_TAG", "latest"))
+    parser.add_argument("--main-tag", default=os.getenv("ZAPAROO_MAIN_TAG", "stable"))
     args = parser.parse_args()
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         core_asset = find_release_asset(CORE_REPO, args.core_tag, CORE_ASSET_RE)
         frontend_asset = find_release_asset(FRONTEND_REPO, args.frontend_tag, FRONTEND_ASSET_RE)
-        main_asset = find_release_asset(MAIN_REPO, args.main_tag, MAIN_ASSET_RE)
+        main_asset = find_main_release_asset(args.main_tag)
 
         core_zip = tmp_path / core_asset.name
         frontend_zip = tmp_path / frontend_asset.name
@@ -111,6 +111,12 @@ def find_release_asset(repo: str, tag: str, pattern: re.Pattern[str]) -> Release
             return ReleaseAsset(tag=release_tag, name=name, url=asset["browser_download_url"])
 
     raise RuntimeError(f"No matching release asset found for {repo}@{release_tag}")
+
+
+def find_main_release_asset(tag: str) -> ReleaseAsset:
+    # GitHub's latest endpoint excludes prereleases, keeping stable separate from the rolling unstable tag.
+    release = "latest" if tag == "stable" else tag
+    return find_release_asset(MAIN_REPO, release, MAIN_ASSET_RE)
 
 
 def read_json_url(url: str) -> dict[str, Any]:
