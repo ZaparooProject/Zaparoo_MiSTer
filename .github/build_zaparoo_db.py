@@ -2,8 +2,8 @@
 """Build the Zaparoo MiSTer Downloader database.
 
 This repository intentionally does not store release binaries. The generated
-Downloader database points at the canonical GitHub release ZIPs from
-zaparoo-core and zaparoo-frontend, then asks Downloader to extract only the
+Downloader database points at canonical GitHub releases from zaparoo-core,
+zaparoo-frontend, and Main_MiSTer, then asks Downloader to install only the
 MiSTer files Zaparoo needs.
 """
 
@@ -31,9 +31,12 @@ DB_ID = "ZaparooProject/Zaparoo_MiSTer"
 DB_URL = "https://raw.githubusercontent.com/ZaparooProject/Zaparoo_MiSTer/db/db.json.zip"
 CORE_REPO = "ZaparooProject/zaparoo-core"
 FRONTEND_REPO = "ZaparooProject/zaparoo-frontend"
+MAIN_REPO = "ZaparooProject/Main_MiSTer"
 
 CORE_ASSET_RE = re.compile(r"^zaparoo-mister_arm-(?P<version>.+)\.zip$")
 FRONTEND_ASSET_RE = re.compile(r"^zaparoo-frontend-(?P<tag>v.+)\.zip$")
+MAIN_ASSET_RE = re.compile(r"^MiSTer_Zaparoo$")
+MAIN_INSTALL_PATH = "zaparoo/MiSTer_Zaparoo"
 
 CORE_FILES = {
     "Scripts/zaparoo.sh": "zaparoo.sh",
@@ -41,7 +44,6 @@ CORE_FILES = {
 
 FRONTEND_FILES = {
     "zaparoo/frontend": "zaparoo/frontend",
-    "zaparoo/MiSTer_Zaparoo": "zaparoo/MiSTer_Zaparoo",
     "zaparoo/menu_zaparoo.rbf": "zaparoo/menu_zaparoo.rbf",
 }
 
@@ -65,19 +67,23 @@ def main() -> int:
     parser.add_argument("--skip-test", action="store_true", help="skip downloader_test.py validation")
     parser.add_argument("--core-tag", default=os.getenv("ZAPAROO_CORE_TAG", "latest"))
     parser.add_argument("--frontend-tag", default=os.getenv("ZAPAROO_FRONTEND_TAG", "latest"))
+    parser.add_argument("--main-tag", default=os.getenv("ZAPAROO_MAIN_TAG", "stable"))
     args = parser.parse_args()
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         core_asset = find_release_asset(CORE_REPO, args.core_tag, CORE_ASSET_RE)
         frontend_asset = find_release_asset(FRONTEND_REPO, args.frontend_tag, FRONTEND_ASSET_RE)
+        main_asset = find_main_release_asset(args.main_tag)
 
         core_zip = tmp_path / core_asset.name
         frontend_zip = tmp_path / frontend_asset.name
+        main_binary = tmp_path / main_asset.name
         download(core_asset.url, core_zip)
         download(frontend_asset.url, frontend_zip)
+        download(main_asset.url, main_binary)
 
-        db = build_db(core_asset, core_zip, frontend_asset, frontend_zip)
+        db = build_db(core_asset, core_zip, frontend_asset, frontend_zip, main_asset, main_binary)
 
     if not args.no_push and not needs_publish(db):
         print("No database changes detected; skipping validation and publish.")
@@ -105,6 +111,12 @@ def find_release_asset(repo: str, tag: str, pattern: re.Pattern[str]) -> Release
             return ReleaseAsset(tag=release_tag, name=name, url=asset["browser_download_url"])
 
     raise RuntimeError(f"No matching release asset found for {repo}@{release_tag}")
+
+
+def find_main_release_asset(tag: str) -> ReleaseAsset:
+    # GitHub's latest endpoint excludes prereleases, keeping stable separate from the rolling unstable tag.
+    release = "latest" if tag == "stable" else tag
+    return find_release_asset(MAIN_REPO, release, MAIN_ASSET_RE)
 
 
 def read_json_url(url: str) -> dict[str, Any]:
@@ -179,18 +191,34 @@ def normalize_archives(db: dict[str, Any]) -> None:
                 folder_desc["zip_id"] = folder_desc.pop("arc_id")
 
 
-def build_db(core_asset: ReleaseAsset, core_zip: Path, frontend_asset: ReleaseAsset, frontend_zip: Path) -> dict[str, Any]:
+def build_db(
+    core_asset: ReleaseAsset,
+    core_zip: Path,
+    frontend_asset: ReleaseAsset,
+    frontend_zip: Path,
+    main_asset: ReleaseAsset,
+    main_binary: Path,
+) -> dict[str, Any]:
     core_archive = file_info(core_zip)
     frontend_archive = file_info(frontend_zip)
+    main_file = file_info(main_binary)
 
     print(f"Core release: {core_asset.tag} ({core_asset.name})")
     print(f"Frontend release: {frontend_asset.tag} ({frontend_asset.name})")
+    print(f"Main release: {main_asset.tag} ({main_asset.name})")
 
     return {
         "v": 1,
         "db_id": DB_ID,
         "timestamp": int(time.time()),
-        "files": {},
+        "files": {
+            MAIN_INSTALL_PATH: {
+                "hash": main_file.md5,
+                "size": main_file.size,
+                "url": main_asset.url,
+                "reboot": True,
+            }
+        },
         "folders": {},
         "archives": {
             "zaparoo_core": {

@@ -16,6 +16,10 @@ on:
         description: "zaparoo-frontend release tag, or latest"
         required: false
         default: "latest"
+      main_tag:
+        description: "Main_MiSTer stable release tag, or stable"
+        required: false
+        default: "stable"
 
 permissions:
   contents: write
@@ -29,8 +33,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build and publish database
-        run: python3 .github/build_zaparoo_db.py --core-tag "$CORE_TAG" --frontend-tag "$FRONTEND_TAG"
+        run: python3 .github/build_zaparoo_db.py --core-tag "$CORE_TAG" --frontend-tag "$FRONTEND_TAG" --main-tag "$MAIN_TAG"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CORE_TAG: ${{ github.event.inputs.core_tag || 'latest' }}
           FRONTEND_TAG: ${{ github.event.inputs.frontend_tag || 'latest' }}
+          MAIN_TAG: ${{ github.event.inputs.main_tag || 'stable' }}
