@@ -63,8 +63,7 @@ class BuildDatabaseTests(unittest.TestCase):
         self.assertEqual(main_file["size"], len(b"current-main"))
         self.assertEqual(main_file["url"], main_asset.url)
         self.assertTrue(main_file["reboot"])
-        self.assertEqual(main_file["backup"], "zaparoo/MiSTer_Zaparoo.bak")
-        self.assertEqual(main_file["tmp"], "zaparoo/MiSTer_Zaparoo.tmp")
+        self.assertEqual(set(main_file), {"hash", "size", "url", "reboot"})
 
         frontend_files = database["archives"]["zaparoo_frontend"]["summary_inline"][
             "files"
@@ -95,11 +94,62 @@ class BuildDatabaseTests(unittest.TestCase):
             build_zaparoo_db.MAIN_ASSET_RE,
         )
 
-    def test_main_asset_pattern_excludes_debug_binary(self) -> None:
-        self.assertIsNotNone(build_zaparoo_db.MAIN_ASSET_RE.fullmatch("MiSTer_Zaparoo"))
-        self.assertIsNone(
-            build_zaparoo_db.MAIN_ASSET_RE.fullmatch("MiSTer_Zaparoo.elf")
+    def test_explicit_main_selector_forwards_release_tag(self) -> None:
+        tag = "MiSTer_Zaparoo_20260707"
+        expected = build_zaparoo_db.ReleaseAsset(
+            tag,
+            "MiSTer_Zaparoo",
+            "https://example/MiSTer_Zaparoo",
         )
+        with mock.patch.object(
+            build_zaparoo_db,
+            "find_release_asset",
+            return_value=expected,
+        ) as find_release_asset:
+            actual = build_zaparoo_db.find_main_release_asset(tag)
+
+        self.assertEqual(actual, expected)
+        find_release_asset.assert_called_once_with(
+            build_zaparoo_db.MAIN_REPO,
+            tag,
+            build_zaparoo_db.MAIN_ASSET_RE,
+        )
+
+    def test_main_asset_selector_excludes_debug_binary(self) -> None:
+        tag = "MiSTer_Zaparoo_20260707"
+        release_url = f"https://api.github.com/repos/{build_zaparoo_db.MAIN_REPO}/releases/tags/{tag}"
+        with mock.patch.object(
+            build_zaparoo_db,
+            "read_json_url",
+            return_value={
+                "tag_name": tag,
+                "assets": [
+                    {
+                        "name": "MiSTer_Zaparoo.elf",
+                        "browser_download_url": "https://example/MiSTer_Zaparoo.elf",
+                    },
+                    {
+                        "name": "MiSTer_Zaparoo",
+                        "browser_download_url": "https://example/MiSTer_Zaparoo",
+                    },
+                ],
+            },
+        ) as read_json_url:
+            asset = build_zaparoo_db.find_release_asset(
+                build_zaparoo_db.MAIN_REPO,
+                tag,
+                build_zaparoo_db.MAIN_ASSET_RE,
+            )
+
+        self.assertEqual(
+            asset,
+            build_zaparoo_db.ReleaseAsset(
+                tag,
+                "MiSTer_Zaparoo",
+                "https://example/MiSTer_Zaparoo",
+            ),
+        )
+        read_json_url.assert_called_once_with(release_url)
 
     @staticmethod
     def write_zip(path: Path, files: dict[str, bytes]) -> None:

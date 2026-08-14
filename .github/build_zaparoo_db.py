@@ -217,8 +217,6 @@ def build_db(
                 "size": main_file.size,
                 "url": main_asset.url,
                 "reboot": True,
-                "backup": f"{MAIN_INSTALL_PATH}.bak",
-                "tmp": f"{MAIN_INSTALL_PATH}.tmp",
             }
         },
         "folders": {},
