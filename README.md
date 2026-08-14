@@ -30,15 +30,16 @@ https://raw.githubusercontent.com/ZaparooProject/Zaparoo_MiSTer/db/downloader_Za
 
 This repo does not mirror Zaparoo binaries.
 
-The workflow builds a Downloader database that points to the official release ZIPs from:
+The workflow builds a Downloader database that points to official releases from:
 
-- `ZaparooProject/zaparoo-core`
-- `ZaparooProject/zaparoo-frontend`
+- `ZaparooProject/zaparoo-core` — Core launcher script
+- `ZaparooProject/zaparoo-frontend` — frontend binary and menu core
+- `ZaparooProject/Main_MiSTer` — latest stable `MiSTer_Zaparoo` binary
 
-Downloader extracts the MiSTer files it needs from those ZIPs.
+Downloader installs only the MiSTer files it needs. Main updates independently of frontend releases so regular upstream MiSTer changes reach users promptly.
 
 ## Maintainer notes
 
 The database rebuilds on pushes to `main`, on a schedule, and when run manually from GitHub Actions.
 
-Manual runs can target specific `zaparoo-core` or `zaparoo-frontend` release tags. Otherwise the workflow uses the latest release from each repo.
+Manual runs can target specific `zaparoo-core`, `zaparoo-frontend`, or stable `Main_MiSTer` release tags. Otherwise the workflow uses the latest release from each repo.
