@@ -74,6 +74,62 @@ class BuildDatabaseTests(unittest.TestCase):
         )
         self.assertNotIn(build_zaparoo_db.MAIN_INSTALL_PATH, frontend_files)
 
+    def test_scanout_modules_are_installed_from_frontend_archive(self) -> None:
+        profile = "zaparoo/modules/6.18.38-MiSTer/ff9b30a1/"
+        with tempfile.TemporaryDirectory() as tmp:
+            frontend_zip = Path(tmp) / "frontend.zip"
+            self.write_zip(
+                frontend_zip,
+                {
+                    "zaparoo/frontend": b"frontend",
+                    "zaparoo/menu_zaparoo.rbf": b"menu",
+                    profile + "profile": b"profile",
+                    profile + "zaparoo_scanout.ko": b"module",
+                    profile + "source/README.md": b"readme",
+                    "LICENSES/COPYING": b"license",
+                },
+            )
+            summary = build_zaparoo_db.build_frontend_summary(frontend_zip)
+
+        self.assertEqual(
+            set(summary["files"]),
+            {
+                "zaparoo/frontend",
+                "zaparoo/menu_zaparoo.rbf",
+                profile + "profile",
+                profile + "zaparoo_scanout.ko",
+                profile + "source/README.md",
+            },
+        )
+        module = summary["files"][profile + "zaparoo_scanout.ko"]
+        self.assertEqual(module["hash"], hashlib.md5(b"module").hexdigest())
+        self.assertEqual(module["arc_at"], profile + "zaparoo_scanout.ko")
+        self.assertEqual(module["arc_id"], "zaparoo_frontend")
+        self.assertEqual(
+            set(summary["folders"]),
+            {
+                "zaparoo/",
+                "zaparoo/modules/",
+                "zaparoo/modules/6.18.38-MiSTer/",
+                profile,
+                profile + "source/",
+            },
+        )
+
+    def test_frontend_without_modules_installs_only_base_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            frontend_zip = Path(tmp) / "frontend.zip"
+            self.write_zip(
+                frontend_zip,
+                {"zaparoo/frontend": b"frontend", "zaparoo/menu_zaparoo.rbf": b"menu"},
+            )
+            summary = build_zaparoo_db.build_frontend_summary(frontend_zip)
+
+        self.assertEqual(
+            set(summary["files"]), {"zaparoo/frontend", "zaparoo/menu_zaparoo.rbf"}
+        )
+        self.assertEqual(set(summary["folders"]), {"zaparoo/"})
+
     def test_stable_main_selector_uses_latest_stable_release(self) -> None:
         expected = build_zaparoo_db.ReleaseAsset(
             "MiSTer_Zaparoo_20260707",
