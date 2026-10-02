@@ -46,6 +46,9 @@ FRONTEND_FILES = {
     "zaparoo/frontend": "zaparoo/frontend",
     "zaparoo/menu_zaparoo.rbf": "zaparoo/menu_zaparoo.rbf",
 }
+# Exact-kernel scanout profiles ship as zaparoo/modules/<release>/<build-id>/...
+# and the build IDs change with the kernel, so they are read from the archive.
+FRONTEND_MODULES_PREFIX = "zaparoo/modules/"
 
 
 @dataclass(frozen=True)
@@ -241,10 +244,23 @@ def build_db(
                     "size": frontend_archive.size,
                     "url": frontend_asset.url,
                 },
-                "summary_inline": build_summary("zaparoo_frontend", frontend_zip, FRONTEND_FILES, {"zaparoo/"}),
+                "summary_inline": build_frontend_summary(frontend_zip),
             },
         },
     }
+
+
+def build_frontend_summary(frontend_zip: Path) -> dict[str, Any]:
+    install_map = dict(FRONTEND_FILES)
+    folders = {"zaparoo/"}
+    with zipfile.ZipFile(frontend_zip) as archive:
+        for name in sorted(archive.namelist()):
+            if not name.startswith(FRONTEND_MODULES_PREFIX) or name.endswith("/"):
+                continue
+            install_map[name] = name
+            parts = name.split("/")[:-1]
+            folders.update("/".join(parts[:depth]) + "/" for depth in range(2, len(parts) + 1))
+    return build_summary("zaparoo_frontend", frontend_zip, install_map, folders)
 
 
 def build_summary(archive_id: str, zip_path: Path, install_map: dict[str, str], folders: set[str]) -> dict[str, Any]:
